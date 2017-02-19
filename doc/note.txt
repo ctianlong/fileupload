@@ -1,0 +1,185 @@
+5. 文件下载的需求:
+
+1). 在文件上传成功后的 success.jsp 页面上提供一个 "下载资源" 的超链接
+
+2). 点击 "下载资源" 的超链接, 会把请求发送到 Servlet, 读取数据库, 在页面上显示可以下载的资源信息
+
+FileName: 11.尚硅谷_JavaWEB_监听器.pptx
+Desc: AA
+下载 
+
+FileName: 12.尚硅谷_JavaWEB_文件的上传和下载.pptx
+Desc: BB
+下载 
+
+3). 再点击下载, 即可完成对应文件的下载. 
+
+4. 文件的下载:
+
+1). 步骤:
+
+I.  设置 contentType 响应头: 设置响应的类型是什么 ? 通知浏览器是个下载的文件
+
+response.setContentType("application/x-msdownload"); 
+
+II. 设置 Content-Disposition 响应头: 通知浏览器不再有浏览器来自行处理(或打开)要下载的文件, 而由用户手工完成
+
+response.setHeader("Content-Disposition", "attachment;filename=abc.txt");
+
+III. 具体的文件: 可以调用 response.getOutputStream 的方式, 以 IO 流的方式发送给客户端.
+
+OutputStream out = response.getOutputStream();
+String pptFileName = "C:\\Users\\Think Pad\\Desktop\\__正在上课__\\11.尚硅谷_JavaWEB_监听器.pptx";
+
+InputStream in = new FileInputStream(pptFileName);
+
+byte [] buffer = new byte[1024];
+int len = 0;
+
+while((len = in.read(buffer)) != -1){
+	out.write(buffer, 0, len);
+}
+
+in.close();
+
+3. 如何修改小工具或框架的源代码 ?
+
+1). 原则: 能不修改就不修改. 
+
+2). 修改的方法:
+
+	> 修改源代码, 替换 jar 包中对应的 class 文件. 
+	
+	> 在本地新建相同的包, 和类, 在这个类中修改即可. 
+
+2. 使用 fileupload 组件完成文件的上传应用
+
+1). 需求:
+
+I.  上传
+	
+	> 在 upload.jsp 页面上使用 jQuery 实现 "新增一个附件", "删除附件". 但至少需要保留一个.
+	
+	> 对文件的扩展名和文件的大小进行验证. 以下的规则是可配置的. 而不是写死在程序中的. 
+	
+		>> 文件的扩展名必须为 .pptx, docx, doc
+		>> 每个文件的大小不能超过 1 M
+		>> 总的文件大小不能超过 5 M.
+		
+	> 若验证失败, 则在 upload.jsp 页面上显示错误消息: 
+	
+		>> 若某一个文件不符合要求: xxx 文件扩展名不合法 或 xxx 文件大小超过 1 M
+		>> 总的文件大小不能超过 5 M.
+		
+	> 若验证通过, 则进行文件的上传操作
+	
+		>> 文件上传, 并给一个不能和其他文件重复的名字, 但扩展名不变
+		>> 在对应的数据表中添加一条记录. 
+		
+		id  file_name  file_path  file_desc
+
+II. 下载
+
+问题: 如何清除上传文件临时文件夹的文件. 
+
+1. 进行文件上传时, 表单需要做的准备:
+
+1). 请求方式为 POST: <form action="uploadServlet" method="post" ... >
+2). 使用 file 的表单域: <input type="file" name="file"/>
+3). 使用 multipart/form-data 的请求编码方式: <form action="uploadServlet" method="post" enctype="multipart/form-data">
+
+<form action="uploadServlet" method="post" enctype="multipart/form-data">
+	
+	File: <input type="file" name="file"/>
+	<input type="submit" value="Submit"/>
+	
+</form>
+
+4). 关于 enctype:
+
+	> application/x-www-form-urlencoded：表单 enctype 属性的默认值。这种编码方案使用有限的字符集，当使用了非字母和数字时，
+	必须用”%HH”代替(H 代表十六进制数字)。对于大容量的二进制数据或包含非 ASCII 字符的文本来说，这种编码不能满足要求。
+	
+	> multipart/form-data：form 设定了enctype=“multipart/form-data”属性后，表示表单以二进制传输数据 
+
+2. 服务端:
+
+1). 不能再使用 request.getParameter() 等方式获取请求信息. 获取不到, 因为请求的编码方式已经改为 multipart/form-data, 以
+二进制的方式来提交请求信息. 
+
+2). 可以使用输入流的方式来获取. 但不建议这样做.
+
+3). 具体使用 commons-fileupload 组件来完成文件的上传操作. 
+
+I. 搭建环境: 加入 
+commons-fileupload-1.2.1.jar
+commons-io-2.0.jar
+
+II. 基本思想: 
+
+	> commons-fileupload 可以解析请求, 得到一个 FileItem 对象组成的 List
+	> commons-fileupload 把所有的请求信息都解析为 FileItem 对象, 无论是一个一般的文本域还是一个文件域. 
+	> 可以调用 FileItem 的 isFormField() 方法来判断是一个 表单域 或不是表单域(则是一个文件域)
+	> 再来进一步获取信息
+	
+	if (item.isFormField()) {
+	    String name = item.getFieldName();
+	    String value = item.getString();
+	    ...
+	} 
+	
+	if (!item.isFormField()) {
+	    String fieldName = item.getFieldName();
+	    String fileName = item.getName();
+	    String contentType = item.getContentType();
+	    boolean isInMemory = item.isInMemory();
+	    long sizeInBytes = item.getSize();
+	    
+	    InputStream uploadedStream = item.getInputStream();
+	    ...
+	    uploadedStream.close();
+	}
+	
+III. 如何得到 List<FileItem> 对象. 
+
+	> 简单的方式
+
+	// Create a factory for disk-based file items
+	FileItemFactory factory = new DiskFileItemFactory();
+	
+	// Create a new file upload handler
+	ServletFileUpload upload = new ServletFileUpload(factory);
+	
+	// Parse the request
+	List /* FileItem */ items = upload.parseRequest(request);
+	
+	> 复杂的方式: 可以为文件的上传加入一些限制条件和其他的属性
+	
+	// Create a factory for disk-based file items
+	DiskFileItemFactory factory = new DiskFileItemFactory();
+	
+	//设置内存中最多可以存放的上传文件的大小, 若超出则把文件写到一个临时文件夹中. 以 byte 为单位
+	factory.setSizeThreshold(yourMaxMemorySize);
+	//设置那个临时文件夹
+	factory.setRepository(yourTempDirectory);
+	
+	// Create a new file upload handler
+	ServletFileUpload upload = new ServletFileUpload(factory);
+	
+	//设置上传文件的总的大小. 也可以设置单个文件的大小. 
+	upload.setSizeMax(yourMaxRequestSize);
+	
+	// Parse the request
+	List /* FileItem */ items = upload.parseRequest(request);
+
+-----------------------------------------------
+
+问题1: 如果是一个多选, 若何获取对应的字符串数组. 每一个都对应一个 FileItem 对象. 
+
+<input type="checkbox" name="interesting" value="Reading"/>Reading
+<input type="checkbox" name="interesting" value="Party"/>Party
+<input type="checkbox" name="interesting" value="Sports"/>Sports
+<input type="checkbox" name="interesting" value="Shopping"/>Shopping
+
+问题2. 临时文件夹如何清空的问题: 手工删除的方式. 
+
